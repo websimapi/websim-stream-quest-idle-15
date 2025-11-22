@@ -24,7 +24,8 @@ export class NetworkManager {
         this.onPlayerListUpdate = null;
         this.onTokenInvalid = null; // fired when host rejects/expired token
 
-        this.initialize();
+        // NOTE: initialization is now explicit; call await network.initialize()
+        // from main.js after UIManager has been constructed so callbacks are wired.
     }
 
     async initialize() {
