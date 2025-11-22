@@ -77,7 +77,7 @@ export function updateState(uiManager, playerData) {
     }
 
     // Auto-restart last task while energy cell is active (only when we didn't manually stop)
-    if (hasActiveEnergy && prevActiveTask && !playerData.activeTask && !uiManager._manualStop) {
+    if (hasActiveEnergy && prevActiveTask && !playerData.activeTask && !uiManager._manualStop && !uiManager.isHost) {
         const taskId = prevActiveTask.taskId;
         let duration = prevActiveTask.duration;
 

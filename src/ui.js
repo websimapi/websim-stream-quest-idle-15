@@ -172,19 +172,25 @@ export class UIManager {
     }
 
     updateState(playerData) {
-        updateStateImpl(this, playerData);
-
-        // Host-only: track own linked Twitch profile so we can switch back to it
+        // Host: track own linked Twitch profile separately and only update the
+        // visible UI when the incoming data matches the currently viewed profile.
         if (this.isHost && playerData && playerData.twitchId) {
-            // First time or updates for the same Twitch account: treat as "self"
+            // Cache "self" once we know which Twitch profile belongs to the host
             if (!this.hostSelfPlayer || this.hostSelfPlayer.twitchId === playerData.twitchId) {
                 this.hostSelfPlayer = playerData;
             }
-            // Default the currently viewed profile to self if nothing is selected yet
+            // If no profile is being viewed yet, default to this one
             if (!this.currentViewedTwitchId) {
                 this.currentViewedTwitchId = playerData.twitchId;
             }
+            // If the incoming update is NOT for the profile currently being viewed,
+            // do not overwrite the management view.
+            if (this.currentViewedTwitchId !== playerData.twitchId) {
+                return;
+            }
         }
+
+        updateStateImpl(this, playerData);
     }
 
     startProgressLoop(taskData) {
