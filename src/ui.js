@@ -57,6 +57,9 @@ export class UIManager {
         this.scavengingActiveTier = 'beginner';
         // New: track which skill is currently selected in the UI
         this.currentSkillId = null;
+        // New: host profile tracking for switching between self and other users
+        this.hostSelfPlayer = null;
+        this.currentViewedTwitchId = null;
 
         // Elements
         this.skillsList = document.getElementById('skills-list');
@@ -170,6 +173,18 @@ export class UIManager {
 
     updateState(playerData) {
         updateStateImpl(this, playerData);
+
+        // Host-only: track own linked Twitch profile so we can switch back to it
+        if (this.isHost && playerData && playerData.twitchId) {
+            // First time or updates for the same Twitch account: treat as "self"
+            if (!this.hostSelfPlayer || this.hostSelfPlayer.twitchId === playerData.twitchId) {
+                this.hostSelfPlayer = playerData;
+            }
+            // Default the currently viewed profile to self if nothing is selected yet
+            if (!this.currentViewedTwitchId) {
+                this.currentViewedTwitchId = playerData.twitchId;
+            }
+        }
     }
 
     startProgressLoop(taskData) {
@@ -183,6 +198,10 @@ export class UIManager {
     // Host-only helper: inspect another player's profile in the UI
     showPlayerProfile(playerData) {
         if (!playerData) return;
+        // Track whose profile is currently being inspected
+        if (playerData.twitchId) {
+            this.currentViewedTwitchId = playerData.twitchId;
+        }
         // For host viewing, just treat the selected player's data as the current UI state.
         this.updateState(playerData);
         this.updateAuthUI();

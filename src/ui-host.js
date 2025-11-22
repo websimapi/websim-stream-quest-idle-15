@@ -123,7 +123,7 @@ export function setupHostUI(uiManager) {
         // Cache players for use in presence updates and realtime/twitch rendering
         network.lastPlayers = Array.isArray(players) ? players : [];
 
-        renderTwitchUsers(players, peers, twitchUsersList, onViewPlayer);
+        renderTwitchUsers(players, peers, twitchUsersList, onViewPlayer, uiManager.hostSelfPlayer);
         renderRealtimeUsers(
             Object.entries(peers || {}).map(([id, info]) => ({
                 id,
@@ -170,10 +170,30 @@ export function renderRealtimeUsers(peers, listEl, onViewPlayer, players) {
     });
 }
 
-export function renderTwitchUsers(players, peers, listEl, onViewPlayer) {
+export function renderTwitchUsers(players, peers, listEl, onViewPlayer, hostSelfPlayer) {
     if (!listEl) return;
     listEl.innerHTML = '';
     const peersMap = peers || {};
+
+    // If the host has a linked Twitch profile, provide a quick "View My Profile" entry
+    if (hostSelfPlayer) {
+        const selfLi = document.createElement('li');
+        selfLi.classList.add('twitch-user-item', 'clickable');
+        selfLi.innerHTML = `
+            <span class="user-name">You: ${hostSelfPlayer.username}</span>
+            <span class="user-meta">(your profile)</span>
+        `;
+        if (typeof onViewPlayer === 'function') {
+            selfLi.addEventListener('click', () => onViewPlayer(hostSelfPlayer));
+        }
+        listEl.appendChild(selfLi);
+
+        // Divider-style spacer between "you" and the rest of the list
+        const divider = document.createElement('li');
+        divider.style.borderTop = '1px solid var(--border)';
+        divider.style.margin = '4px 0';
+        listEl.appendChild(divider);
+    }
 
     (players || []).forEach(player => {
         const li = document.createElement('li');
