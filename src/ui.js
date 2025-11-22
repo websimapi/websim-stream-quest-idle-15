@@ -57,9 +57,9 @@ export class UIManager {
         this.scavengingActiveTier = 'beginner';
         // New: track which skill is currently selected in the UI
         this.currentSkillId = null;
-        // New: host profile tracking for switching between self and other users
-        this.hostSelfPlayer = null;
-        this.currentViewedTwitchId = null;
+        
+        // New: Host spectating mode
+        this.spectatingId = null;
 
         // Elements
         this.skillsList = document.getElementById('skills-list');
@@ -150,44 +150,45 @@ export class UIManager {
 
     updateAuthUI() {
         const hasToken = !!localStorage.getItem('sq_token');
+        // If spectating, we are "logged in" as the spectated user visually,
+        // but we might want to hide the Link button to avoid confusion.
+        // However, the prompt implies returning to "Linked Profile View".
+        
+        // If spectating, show the spectated user's name/avatar (handled by updateState)
+        // but hide the Link button.
+        const effectiveToken = this.spectatingId ? true : hasToken;
 
         if (this.linkAccountBtn) {
-            this.linkAccountBtn.style.display = hasToken ? 'none' : 'inline-block';
+            this.linkAccountBtn.style.display = effectiveToken ? 'none' : 'inline-block';
         }
 
         if (this.userAvatar) {
-            this.userAvatar.style.display = hasToken ? 'block' : 'none';
+            this.userAvatar.style.display = effectiveToken ? 'block' : 'none';
         }
         if (this.usernameDisplay) {
-            this.usernameDisplay.style.display = hasToken ? 'inline-block' : 'none';
-            if (!hasToken) {
+            this.usernameDisplay.style.display = effectiveToken ? 'inline-block' : 'none';
+            if (!effectiveToken) {
                 this.usernameDisplay.innerText = 'Guest';
             }
         }
 
-        // Hide dropdown when not linked
-        if (!hasToken && this.clientUserDropdown) {
-            this.clientUserDropdown.style.display = 'none';
+        // Hide dropdown when not linked or when spectating (host menu handles switching back)
+        if (this.clientUserDropdown) {
+             if (!hasToken || this.spectatingId) {
+                 this.clientUserDropdown.style.display = 'none';
+             }
         }
     }
 
     updateState(playerData) {
-        // Host: track own linked Twitch profile separately and only update the
-        // visible UI when the incoming data matches the currently viewed profile.
-        if (this.isHost && playerData && playerData.twitchId) {
-            // Cache "self" once we know which Twitch profile belongs to the host
-            if (!this.hostSelfPlayer || this.hostSelfPlayer.twitchId === playerData.twitchId) {
-                this.hostSelfPlayer = playerData;
+        // If spectating, only accept updates for the spectated player
+        if (this.spectatingId) {
+            if (!playerData || playerData.twitchId !== this.spectatingId) {
+                return; 
             }
-            // If no profile is being viewed yet, default to this one
-            if (!this.currentViewedTwitchId) {
-                this.currentViewedTwitchId = playerData.twitchId;
-            }
-            // If the incoming update is NOT for the profile currently being viewed,
-            // do not overwrite the management view.
-            if (this.currentViewedTwitchId !== playerData.twitchId) {
-                return;
-            }
+        } else {
+            // If not spectating, verify this is meant for us (should be handled by network layer mostly, 
+            // but double check if we get a random object)
         }
 
         updateStateImpl(this, playerData);
@@ -204,12 +205,35 @@ export class UIManager {
     // Host-only helper: inspect another player's profile in the UI
     showPlayerProfile(playerData) {
         if (!playerData) return;
-        // Track whose profile is currently being inspected
-        if (playerData.twitchId) {
-            this.currentViewedTwitchId = playerData.twitchId;
-        }
-        // For host viewing, just treat the selected player's data as the current UI state.
+        this.spectatingId = playerData.twitchId;
         this.updateState(playerData);
         this.updateAuthUI();
+        
+        // Force refresh of the host menu to show "Back" button
+        if (this.isHost && typeof this.refreshHostUserMenu === 'function') {
+            this.refreshHostUserMenu();
+        }
+    }
+
+    // Host-only helper: return to own view
+    stopSpectating() {
+        this.spectatingId = null;
+        const token = localStorage.getItem('sq_token');
+        if (token) {
+            this.network.syncWithToken(token);
+        } else {
+            // Reset to guest
+            this.usernameDisplay.innerText = 'Guest';
+            this.energyCount.innerText = '0/12';
+            this.energyBarFill.style.width = '0%';
+            this.skillsList.innerHTML = '';
+            this.inventoryList.innerHTML = '';
+            this.activeTaskContainer.style.display = 'none';
+            this.updateAuthUI();
+        }
+
+        if (this.isHost && typeof this.refreshHostUserMenu === 'function') {
+            this.refreshHostUserMenu();
+        }
     }
 }

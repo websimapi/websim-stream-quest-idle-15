@@ -158,11 +158,6 @@ export function initListeners(uiManager) {
         if (uiManager.authOverlay) {
             uiManager.authOverlay.style.display = 'none';
         }
-        // Host: clear cached self profile when token is no longer valid
-        if (uiManager.isHost) {
-            uiManager.hostSelfPlayer = null;
-            uiManager.currentViewedTwitchId = null;
-        }
         uiManager.updateAuthUI();
     };
 

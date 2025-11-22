@@ -77,7 +77,7 @@ export function updateState(uiManager, playerData) {
     }
 
     // Auto-restart last task while energy cell is active (only when we didn't manually stop)
-    if (hasActiveEnergy && prevActiveTask && !playerData.activeTask && !uiManager._manualStop && !uiManager.isHost) {
+    if (hasActiveEnergy && prevActiveTask && !playerData.activeTask && !uiManager._manualStop) {
         const taskId = prevActiveTask.taskId;
         let duration = prevActiveTask.duration;
 
@@ -96,9 +96,7 @@ export function updateState(uiManager, playerData) {
             // Start the next iteration immediately and keep UI visible;
             // we'll get a fresh state_update for the new task.
             uiManager.network.startTask(taskId, duration);
-            // NOTE: do not return here; we still want to process the rest of the
-            // UI update so inventory/skills and header state refresh correctly
-            // after each completion.
+            return;
         }
     } else if (!playerData.activeTask && !hasActiveEnergy) {
         // If there is no active task and no active energy, clear any manual-stop suppression

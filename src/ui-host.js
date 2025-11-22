@@ -20,11 +20,45 @@ export function setupHostUI(uiManager) {
         hostUserMenu.style.display = 'flex';
     }
 
+    // New: Listen for global database saves to update UI if spectating
+    window.addEventListener('sq:player_update', (e) => {
+        const p = e.detail;
+        if (uiManager.spectatingId === p.twitchId) {
+             uiManager.updateState(p);
+        }
+    });
+
     // Helper: when a host clicks a user, show their profile (skills/inventory) in the main UI
     const onViewPlayer = (player) => {
         if (!player) return;
         if (typeof uiManager.showPlayerProfile === 'function') {
             uiManager.showPlayerProfile(player);
+        }
+    };
+    
+    // Attach a refresher to uiManager so we can update the dropdown content dynamically
+    uiManager.refreshHostUserMenu = () => {
+        // If spectating, add a "Return to My Profile" button at the top
+        const existingReturnBtn = hostUserDropdown.querySelector('#host-return-btn-container');
+        if (uiManager.spectatingId) {
+            if (!existingReturnBtn) {
+                const container = document.createElement('div');
+                container.id = 'host-return-btn-container';
+                container.className = 'dropdown-section';
+                container.innerHTML = `
+                    <button class="primary-btn small-primary-btn" style="width:100%; font-size:0.8rem;">
+                        Return to My Profile
+                    </button>
+                `;
+                container.querySelector('button').onclick = () => {
+                    uiManager.stopSpectating();
+                };
+                hostUserDropdown.insertBefore(container, hostUserDropdown.firstChild);
+            }
+        } else {
+            if (existingReturnBtn) {
+                existingReturnBtn.remove();
+            }
         }
     };
 
@@ -33,6 +67,9 @@ export function setupHostUI(uiManager) {
         hostUserBtn.addEventListener('click', () => {
             const isOpen = hostUserDropdown.style.display === 'block';
             hostUserDropdown.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) {
+                uiManager.refreshHostUserMenu();
+            }
         });
 
         // Close dropdown when clicking outside
@@ -123,7 +160,7 @@ export function setupHostUI(uiManager) {
         // Cache players for use in presence updates and realtime/twitch rendering
         network.lastPlayers = Array.isArray(players) ? players : [];
 
-        renderTwitchUsers(players, peers, twitchUsersList, onViewPlayer, uiManager.hostSelfPlayer);
+        renderTwitchUsers(players, peers, twitchUsersList, onViewPlayer);
         renderRealtimeUsers(
             Object.entries(peers || {}).map(([id, info]) => ({
                 id,
@@ -170,30 +207,10 @@ export function renderRealtimeUsers(peers, listEl, onViewPlayer, players) {
     });
 }
 
-export function renderTwitchUsers(players, peers, listEl, onViewPlayer, hostSelfPlayer) {
+export function renderTwitchUsers(players, peers, listEl, onViewPlayer) {
     if (!listEl) return;
     listEl.innerHTML = '';
     const peersMap = peers || {};
-
-    // If the host has a linked Twitch profile, provide a quick "View My Profile" entry
-    if (hostSelfPlayer) {
-        const selfLi = document.createElement('li');
-        selfLi.classList.add('twitch-user-item', 'clickable');
-        selfLi.innerHTML = `
-            <span class="user-name">You: ${hostSelfPlayer.username}</span>
-            <span class="user-meta">(your profile)</span>
-        `;
-        if (typeof onViewPlayer === 'function') {
-            selfLi.addEventListener('click', () => onViewPlayer(hostSelfPlayer));
-        }
-        listEl.appendChild(selfLi);
-
-        // Divider-style spacer between "you" and the rest of the list
-        const divider = document.createElement('li');
-        divider.style.borderTop = '1px solid var(--border)';
-        divider.style.margin = '4px 0';
-        listEl.appendChild(divider);
-    }
 
     (players || []).forEach(player => {
         const li = document.createElement('li');

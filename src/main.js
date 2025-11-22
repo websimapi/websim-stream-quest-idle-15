@@ -17,11 +17,6 @@ async function init() {
     const network = new NetworkManager(room, isHost, currentUser);
     const ui = new UIManager(network, isHost);
 
-    // Ensure network-side host/client listeners are fully initialized
-    // (host listeners, presence watcher, and dropdown callbacks) before
-    // any auto-connect or sync logic runs.
-    await network.initialize();
-
     // Setup Host Specific UI
     if (isHost) {
         document.getElementById('host-controls').style.display = 'block';
